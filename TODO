@@ -1,0 +1,10 @@
+backend:
+    godown:
+        add new godown
+        edit existing godown
+        get all godowns of the current user
+        on clicking godown it should display what products it has
+    godown rentals:
+        search for others godowns to send a rent request
+        accept/reject the request
+
