@@ -104,7 +104,7 @@ CREATE TABLE `store_history` (
   `godown_id` int NOT NULL,
   `product_id` int NOT NULL,
   `quantity_change` int DEFAULT NULL,
-  `action_type` enum('add','remove','transfer') DEFAULT NULL,
+  `action_type` enum('add','remove') DEFAULT NULL,
   `deleted` tinyint(1) DEFAULT 0,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

@@ -133,7 +133,11 @@ const addProductToGodown = async (godown_id, product_id, quantity) => {
          ON DUPLICATE KEY UPDATE quantity = quantity + ?`,
         [godown_id, product_id, quantity, quantity]
     );
-
+    const [result2] = await db.query(
+        `INSERT INTO store_history (godown_id, product_id, quantity_change, action_type) 
+            VALUES (?, ?, ?, 'add')`,
+        [godown_id, product_id, quantity, "add"]
+    );
     return result;
 };
 
@@ -146,7 +150,11 @@ const removeProductFromGodown = async (godown_id, product_id, quantity) => {
          AND quantity >= ?`,
         [quantity, godown_id, product_id, quantity]
     );
-
+    const [result2] = await db.query(
+        `INSERT INTO store_history (godown_id, product_id, quantity_change, action_type) 
+            VALUES (?, ?, ?, 'remove')`,
+        [godown_id, product_id, quantity, "remove"]
+    );
     return result;
 };
 
