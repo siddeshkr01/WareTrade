@@ -12,7 +12,12 @@ const authMiddleware = (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     try {
+        if (!process.env.JWT_SECRET) {
+            throw new Error("JWT secret not configured");
+        }
+
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
         req.user = decoded;
         next();
     } catch (err) {

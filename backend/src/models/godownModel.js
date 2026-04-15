@@ -110,11 +110,11 @@ const getAllRentedGodowns = async (user_id) => {
 
 const checkActiveRental = async (godown_id) => {
     const [rows] = await db.query(
-        `SELECT 1 FROM godown_rental_details
+        `SELECT * FROM godown_rental_details
          WHERE godown_id = ? AND status = 'accepted'`,
         [godown_id]
     );
-    return rows.length > 0;
+    return rows[0];
 };
 
 const checkStoredProducts = async (godown_id) => {
@@ -150,34 +150,79 @@ const removeProductFromGodown = async (godown_id, product_id, quantity) => {
          AND quantity >= ?`,
         [quantity, godown_id, product_id, quantity]
     );
-    const [result2] = await db.query(
-        `INSERT INTO store_history (godown_id, product_id, quantity_change, action_type) 
+
+    if (result.affectedRows > 0) {
+        await db.query(
+            `INSERT INTO store_history 
+            (godown_id, product_id, quantity_change, action_type) 
             VALUES (?, ?, ?, 'remove')`,
-        [godown_id, product_id, quantity, "remove"]
-    );
+            [godown_id, product_id, quantity]
+        );
+    }
+
     return result;
 };
 
-const updateRentalStatus = async (rental_id, status) => {
+const createRentalRequest = async (godown_id, tenant_id) => {
     const [result] = await db.query(
-        `UPDATE godown_rental_details
-         SET status = ?
-         WHERE rental_id = ?`,
-        [status, rental_id]
+        `INSERT INTO godown_rental_details (godown_id, tenant_id, status)
+         VALUES (?, ?, 'requested')`,
+        [godown_id, tenant_id]
     );
 
     return result;
+};
+
+const updateRentalStatus = async (rental_id, status, owner_id) => {
+    const [result] = await db.query(
+        `UPDATE godown_rental_details grd
+        JOIN godown g ON grd.godown_id = g.godown_id
+        SET grd.status = ?
+        WHERE grd.rental_id = ?
+        AND g.owner_id = ?`,
+        [status, rental_id, owner_id]
+    );
+
+    return result;
+};
+
+const getCurrentUser = async (godown_id) => {
+    const [rows] = await db.query(
+        `SELECT owner_id, tenant_id FROM godown g
+            LEFT JOIN godown_rental_details grd ON g.godown_id = grd.godown_id AND grd.status = 'accepted'
+         WHERE g.godown_id = ?`,
+        [godown_id]
+    );
+    return rows[0];
 };
 
 const getGodownDetails = async (godown_id) => {
     const [rows] = await db.query(
-        `SELECT g.godown_id, g.godown_name, g.location, g.capacity, u.user_name AS owner_name
+        `SELECT 
+            g.godown_id, 
+            g.godown_name, 
+            g.location, 
+            g.capacity, 
+            g.owner_id,   -- ✅ ADDED
+            u.user_name AS owner_name
          FROM godown g
          JOIN user u ON g.owner_id = u.user_id
          WHERE g.godown_id = ? AND g.deleted = FALSE`,
         [godown_id]
     );
 
+    return rows[0];
+};
+
+const getRentalById = async (rental_id) => {
+    const [rows] = await db.query(
+        `SELECT grd.*, g.owner_id 
+         FROM godown_rental_details grd
+         JOIN godown g 
+            ON grd.godown_id = g.godown_id
+         WHERE grd.rental_id = ?`,
+        [rental_id]
+    );
     return rows[0];
 };
 
@@ -193,5 +238,8 @@ module.exports = {
     checkActiveRental,
     checkStoredProducts,
     getGodownDetails,
-    updateRentalStatus
+    updateRentalStatus,
+    getCurrentUser,
+    getRentalById,
+    createRentalRequest
 };

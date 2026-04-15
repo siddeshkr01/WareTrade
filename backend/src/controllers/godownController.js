@@ -20,7 +20,11 @@ const createGodown = async (req, res) => {
 const editGodown = async (req, res) => {
     try {
         const owner_id = req.user.user_id;
-        const godown_id = req.params.id;
+        const godown_id = parseInt(req.params.id);
+
+        if (isNaN(godown_id)) {
+            return res.status(400).json({ error: "Invalid godown ID" });
+        }
 
         const result = await godownService.editGodown(
             godown_id,
@@ -38,7 +42,11 @@ const editGodown = async (req, res) => {
 const deleteGodown = async (req, res) => {
     try {
         const owner_id = req.user.user_id;
-        const godown_id = req.params.id;
+        const godown_id = parseInt(req.params.id);
+
+        if (isNaN(godown_id)) {
+            return res.status(400).json({ error: "Invalid godown ID" });
+        }
 
         const result = await godownService.deleteGodown(
             godown_id,
@@ -67,9 +75,12 @@ const getMyGodowns = async (req, res) => {
 // 🔹 Get Godown Details
 const getGodownDetails = async (req, res) => {
     try {
-        const godown_id = req.params.id;
+        const godown_id = parseInt(req.params.id);
+        if (isNaN(godown_id)) {
+            return res.status(400).json({ error: "Invalid godown ID" });
+        }
 
-        const godown = await godownService.getGodownDetails(godown_id);
+        const godown = await godownService.getGodownDetails(godown_id, req.user.user_id);
 
         res.json(godown);
     } catch (err) {
@@ -106,12 +117,46 @@ const getRentedGodowns = async (req, res) => {
 // 🔹 Add Stock
 const addStock = async (req, res) => {
     try {
+        const { godown_id, quantity } = req.body;
 
-        const result = await godownService.addStock(
-            req.body
+        const parsedGodownId = parseInt(godown_id);
+        const parsedQuantity = parseInt(quantity);
+
+        if (isNaN(parsedGodownId) || isNaN(parsedQuantity)) {
+            return res.status(400).json({ error: "Invalid input values" });
+        }
+
+        // ✅ removed unused variable
+        await godownService.addStock(
+            {
+                ...req.body,
+                godown_id: parsedGodownId,
+                quantity: parsedQuantity
+            },
+            req.user.user_id
         );
 
         res.json({ message: "Stock added successfully" });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
+const requestRental = async (req, res) => {
+    try {
+        const { godown_id } = req.body;
+        const parsedId = parseInt(godown_id);
+
+        if (isNaN(parsedId)) {
+            return res.status(400).json({ error: "Invalid godown ID" });
+        }
+
+        await godownService.createRentalRequest(
+            parsedId,
+            req.user.user_id
+        );
+
+        res.json({ message: "Rental request sent" });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
@@ -122,10 +167,19 @@ const removeStock = async (req, res) => {
     try {
         const { godown_id, product_id, quantity } = req.body;
 
+        const parsedGodownId = parseInt(godown_id);
+        const parsedProductId = parseInt(product_id);
+        const parsedQuantity = parseInt(quantity);
+
+        if (isNaN(parsedGodownId) || isNaN(parsedProductId) || isNaN(parsedQuantity)) {
+            return res.status(400).json({ error: "Invalid input values" });
+        }
+
         await godownService.removeStock(
-            godown_id,
-            product_id,
-            quantity
+            parsedGodownId,
+            parsedProductId,
+            parsedQuantity,
+            req.user.user_id
         );
 
         res.json({ message: "Stock removed successfully" });
@@ -139,7 +193,17 @@ const handleRentalRequest = async (req, res) => {
     try {
         const { rental_id, status } = req.body;
 
-        await godownService.handleRentalRequest(rental_id, status);
+        const parsedRentalId = parseInt(rental_id);
+
+        if (isNaN(parsedRentalId)) {
+            return res.status(400).json({ error: "Invalid rental ID" });
+        }
+
+        await godownService.handleRentalRequest(
+            parsedRentalId,
+            status,
+            req.user.user_id
+        );
 
         res.json({ message: `Rental ${status}` });
     } catch (err) {
@@ -152,7 +216,16 @@ const endRental = async (req, res) => {
     try {
         const { rental_id } = req.body;
 
-        await godownService.endRental(rental_id);
+        const parsedRentalId = parseInt(rental_id);
+
+        if (isNaN(parsedRentalId)) {
+            return res.status(400).json({ error: "Invalid rental ID" });
+        }
+
+        await godownService.endRental(
+            parsedRentalId,
+            req.user.user_id
+        );
 
         res.json({ message: "Rental completed" });
     } catch (err) {
@@ -171,5 +244,6 @@ module.exports = {
     addStock,
     removeStock,
     handleRentalRequest,
-    endRental
+    endRental,
+    requestRental
 };

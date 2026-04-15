@@ -16,10 +16,11 @@ app.get('/', (req, res) => {
 
 // routes
 const userRoutes = require('./routes/userRoutes');
-app.use('/api/users', userRoutes);
+app.use('/api/user', userRoutes);
 const godownRoutes = require('./routes/godownRoutes');
-app.use('/api/godowns', godownRoutes);
-
+app.use('/api/godown', godownRoutes);
+const productRoutes = require('./routes/productRoutes');
+app.use('/api/product', productRoutes);
 // start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

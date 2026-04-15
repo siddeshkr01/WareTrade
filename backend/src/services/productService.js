@@ -21,7 +21,7 @@ const addProduct = async (data) => {
     }
 };
 
-const editProduct = async (id, data) => {
+const editProduct = async (id, data, user_id) => {
     const { product_name, category } = data;
 
     if (!product_name?.trim() || !category?.trim()) {
@@ -33,12 +33,27 @@ const editProduct = async (id, data) => {
         throw new Error("Product already exists");
     }
 
+    const product = await productModel.getProductDetailsById(id);
+    if (!product) {
+        throw new Error("Product not found");
+    }
+
+    // ⚠️ If you later add ownership → enforce here
+
     await productModel.editProduct(id, { product_name, category });
+
     return { message: "Product updated successfully" };
 };
 
 const deleteProduct = async (id) => {
+    const product = await productModel.getProductDetailsById(id);
+
+    if (!product) {
+        throw new Error("Product not found");
+    }
+
     await productModel.deleteProduct(id);
+
     return { message: "Product deleted successfully" };
 };
 

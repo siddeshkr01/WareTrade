@@ -12,7 +12,17 @@ const createProduct = async (req, res) => {
 const editProduct = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const result = await productService.editProduct(id, req.body);
+
+        if (isNaN(id)) {
+            return res.status(400).json({ error: "Invalid product ID" });
+        }
+
+        const result = await productService.editProduct(
+            id,
+            req.body,
+            req.user.user_id
+        );
+
         res.json(result);
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -22,6 +32,12 @@ const editProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
+
+        // ✅ ADDED
+        if (isNaN(id)) {
+            return res.status(400).json({ error: "Invalid product ID" });
+        }
+
         const result = await productService.deleteProduct(id);
         res.json(result);
     } catch (err) {
@@ -42,6 +58,11 @@ const getMyProducts = async (req, res) => {
 const getProductDetails = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
+
+        if (isNaN(id)) {
+            return res.status(400).json({ error: "Invalid product ID" });
+        }
+
         const product = await productService.getProductById(id);
         res.json(product);
     } catch (err) {
@@ -53,6 +74,12 @@ const getAllMygodownsWithProductAlongWithQuantity = async (req, res) => {
     try {
         const user_id = req.user.user_id;
         const product_id = parseInt(req.params.id);
+
+        // ✅ ADDED
+        if (isNaN(product_id)) {
+            return res.status(400).json({ error: "Invalid product ID" });
+        }
+
         const result = await productService.getAllMygodownsWithProductAlongWithQuantity(user_id, product_id);
         res.json(result);
     } catch (err) {

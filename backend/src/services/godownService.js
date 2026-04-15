@@ -67,9 +67,23 @@ const deleteGodown = async (godown_id, owner_id) => {
     return { message: "Godown deleted successfully" };
 };
 
-const getGodownDetails = async (godown_id) => {
+const getGodownDetails = async (godown_id, user_id) => {
+
     const godown = await godownModel.getGodownDetails(godown_id);
     if (!godown) throw new Error("Godown not found");
+
+    // ✅ Owner access
+    if (godown.owner_id === user_id) {
+        return godown;
+    }
+
+    // ✅ Tenant access
+    const current = await godownModel.getCurrentUser(godown_id);
+
+    if (!current || current.tenant_id !== user_id) {
+        throw new Error("Unauthorized");
+    }
+
     return godown;
 };
 
@@ -85,13 +99,26 @@ const getAllRentedGodowns = async (tenant_id) => {
     return await godownModel.getAllRentedGodowns(tenant_id);
 };
 
-const addStock = async (data) => {
+const addStock = async (data, user_id) => {
     const { godown_id, quantity , product_name, category} = data;
+    const currentuser = await godownModel.getCurrentUser(godown_id);
+    if (!currentuser) {
+        throw new Error("Godown not found");
+    }
+    if (currentuser.owner_id !== user_id && currentuser.tenant_id !== user_id) {
+        throw new Error("Unauthorized");
+    }
+    if (currentuser.owner_id === user_id && currentuser.tenant_id) {
+        throw new Error("Cannot add stock to a currently rented godown");
+    }
     if (!Number.isInteger(quantity) || quantity <= 0) {
         throw new Error("Quantity must be positive");
     }
     const product = await productModel.findActiveProduct(product_name, category);
     if (!product) {
+        if (!product_name?.trim() || !category?.trim()) {
+            throw new Error("Product name and category required");
+        }
         data.product_id = await productModel.createProduct(product_name, category);
     } else {
         data.product_id = product.product_id;
@@ -99,7 +126,18 @@ const addStock = async (data) => {
     return await godownModel.addProductToGodown(godown_id, data.product_id, quantity);
 };
 
-const removeStock = async (godown_id, product_id, quantity) => {
+const removeStock = async (godown_id, product_id, quantity, user_id) => {
+
+    const currentuser = await godownModel.getCurrentUser(godown_id);
+    if (!currentuser) {
+        throw new Error("Godown not found");
+    }
+    if (currentuser.owner_id !== user_id && currentuser.tenant_id !== user_id) {
+        throw new Error("Unauthorized");
+    }
+    if (currentuser.owner_id === user_id && currentuser.tenant_id) {
+        throw new Error("Cannot remove stock from a currently rented godown");
+    }
     if (!Number.isInteger(quantity) || quantity <= 0) {
         throw new Error("Quantity must be positive");
     }
@@ -117,15 +155,52 @@ const removeStock = async (godown_id, product_id, quantity) => {
     return result;
 };
 
-const handleRentalRequest = async (rental_id, status) => {
+const createRentalRequest = async (godown_id, tenant_id) => {
+    const current = await godownModel.getCurrentUser(godown_id);
+
+    if (!current) {
+        throw new Error("Godown not found");
+    }
+
+    if (current.owner_id === tenant_id) {
+        throw new Error("Owner cannot request own godown");
+    }
+
+    if (current.tenant_id) {
+        throw new Error("Godown already rented");
+    }
+
+    return await godownModel.createRentalRequest(godown_id, tenant_id);
+};
+
+const handleRentalRequest = async (rental_id, status, user_id) => {
+    const rental = await godownModel.getRentalById(rental_id);
+    if (!rental) {
+        throw new Error("Rental request not found");
+    }
+    if (rental.owner_id !== user_id) {
+        throw new Error("Unauthorized");
+    }
     if (!['accepted', 'rejected'].includes(status)) {
         throw new Error("Invalid status");
     }
-
-    return await godownModel.updateRentalStatus(rental_id, status);
+    return await godownModel.updateRentalStatus(rental_id, status, user_id);
 };
 
-const endRental = async (rental_id) => {
+const endRental = async (rental_id, user_id) => {
+    const rental = await godownModel.getRentalById(rental_id);
+    if (!rental) {
+        throw new Error("Rental not found");
+    }
+    if (rental.owner_id !== user_id) {
+        throw new Error("Unauthorized");
+    }
+    if (rental.status !== 'accepted') {
+        throw new Error("Rental is not active");
+    }
+    if (rental.tenant_id === user_id) {
+        throw new Error("Tenants cannot end rentals. Contact the owner to end the rental.");
+    }
     return await godownModel.updateRentalStatus(rental_id, 'completed');
 };
 
@@ -140,5 +215,6 @@ module.exports = {
     addStock,
     removeStock,
     handleRentalRequest,
-    endRental
+    endRental,
+    createRentalRequest
 };
