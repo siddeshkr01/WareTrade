@@ -1,5 +1,21 @@
+# Node modules
 node_modules/
+
+# Env files
 .env
+
+# Logs
+npm-debug.log*
+
+# OS files
+.DS_Store
+
+# Build folders
 dist/
 build/
-*.log
+
+# Vite cache
+.vite/
+
+# Backend uploads (if any)
+uploads/
