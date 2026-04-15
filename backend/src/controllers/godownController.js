@@ -106,12 +106,9 @@ const getRentedGodowns = async (req, res) => {
 // 🔹 Add Stock
 const addStock = async (req, res) => {
     try {
-        const { godown_id, product_id, quantity } = req.body;
 
         const result = await godownService.addStock(
-            godown_id,
-            product_id,
-            quantity
+            req.body
         );
 
         res.json({ message: "Stock added successfully" });

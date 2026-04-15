@@ -1,4 +1,5 @@
 const godownModel = require('../models/godownModel');
+const productModel = require('../models/productModel');
 
 const addGodown = async (data) => {
     const { godown_name, location, capacity, owner_id } = data;
@@ -84,12 +85,18 @@ const getAllRentedGodowns = async (tenant_id) => {
     return await godownModel.getAllRentedGodowns(tenant_id);
 };
 
-const addStock = async (godown_id, product_id, quantity) => {
+const addStock = async (data) => {
+    const { godown_id, quantity , product_name, category} = data;
     if (!Number.isInteger(quantity) || quantity <= 0) {
         throw new Error("Quantity must be positive");
     }
-
-    return await godownModel.addProductToGodown(godown_id, product_id, quantity);
+    const product = await productModel.findActiveProduct(product_name, category);
+    if (!product) {
+        data.product_id = await productModel.createProduct(product_name, category);
+    } else {
+        data.product_id = product.product_id;
+    }
+    return await godownModel.addProductToGodown(godown_id, data.product_id, quantity);
 };
 
 const removeStock = async (godown_id, product_id, quantity) => {
