@@ -117,3 +117,31 @@ CREATE TABLE `store_history` (
     REFERENCES `products` (`product_id`)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE trade (
+    trade_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    initiator_id INT NOT NULL,
+    counterparty_id INT NOT NULL,
+
+    trade_type ENUM('buy', 'sell') NOT NULL,
+
+    status ENUM('created', 'pending', 'accepted', 'rejected') DEFAULT 'created',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (initiator_id) REFERENCES user(user_id),
+    FOREIGN KEY (counterparty_id) REFERENCES user(user_id)
+);
+
+CREATE TABLE trade_item (
+    trade_id INT,
+    product_id INT,
+    quantity INT NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    from_godown_id INT NOT NULL,
+    PRIMARY KEY (trade_id, product_id),
+
+    FOREIGN KEY (trade_id) REFERENCES trade(trade_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES product(product_id)
+);

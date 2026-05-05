@@ -7,4 +7,17 @@ backend:
     godown rentals:
         search for others godowns to send a rent request
         accept/reject the request
+    trade:
+    user A creates a trade by selecting user B.
+    once trade is created he will add products by selecting products from godown. if the trade is successful then those products will be removed from that godown.
+    user B can accept of reject the trade.
+    if user B accepts then he need to choose his godowns to which he will store the products.
+        create trade-> gets user A and user B user_id and trade type and then adds it to table by keeping created as a default status.
+        add items-> it will get trade id, product id, quantity, price and from godownId from frontend and inserts into the trade item table.
+        send req-> after adding all the items userA clicks send button to send the request. Now the status changes from created to pending.
+        getreceivedTradesbyuserId-> user B will get all the trades in which he is counterparty.
+        accept/reject trade-> here the service will be same but it will call different model based on th response.
+        if he rejects then status will be changed to rejected and nothing changes, if he accepts then from user A we need to removw those products and add them into user B's godown, user B's godowns will be selected by him only.
+        now trade is completed.
+
 
