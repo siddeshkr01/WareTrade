@@ -143,5 +143,5 @@ CREATE TABLE trade_item (
     PRIMARY KEY (trade_id, product_id),
 
     FOREIGN KEY (trade_id) REFERENCES trade(trade_id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES product(product_id)
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
 );
