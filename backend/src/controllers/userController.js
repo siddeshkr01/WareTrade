@@ -27,7 +27,37 @@ const login = async (req, res) => {
     }
 };
 
+const lookupUser = async (req, res) => {
+    try {
+        const identifier = req.query.identifier;
+        if (!identifier?.trim()) {
+            return res.status(400).json({ error: "identifier is required" });
+        }
+
+        const user = await userService.findPublicUser(identifier.trim(), req.user.user_id);
+        res.json(user);
+    } catch (err) {
+        res.status(404).json({ error: err.message });
+    }
+};
+
+const getPublicProfile = async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+        if (isNaN(userId)) {
+            return res.status(400).json({ error: "Invalid user ID" });
+        }
+
+        const profile = await userService.getPublicProfile(userId);
+        res.json(profile);
+    } catch (err) {
+        res.status(404).json({ error: err.message });
+    }
+};
+
 module.exports = {
     register,
-    login
+    login,
+    lookupUser,
+    getPublicProfile
 };

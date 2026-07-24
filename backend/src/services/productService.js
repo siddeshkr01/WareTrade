@@ -82,6 +82,10 @@ const getAllMygodownsWithProductAlongWithQuantity = async (user_id, product_id) 
     };
 };
 
+const searchProducts = async (searchTerm) => {
+    return await productModel.searchProducts(searchTerm);
+};
+
 const getProductById = async (product_id) => {
     const product = await productModel.getProductDetailsById(product_id);
     if (!product) throw new Error("Product not found");
@@ -94,5 +98,6 @@ module.exports = {
     deleteProduct,
     getProductsByUserId,
     getAllMygodownsWithProductAlongWithQuantity,
-    getProductById
+    getProductById,
+    searchProducts
 };

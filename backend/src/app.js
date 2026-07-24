@@ -26,6 +26,12 @@ const godownRoutes = require('./routes/godownRoutes');
 app.use('/api/godown', godownRoutes);
 const productRoutes = require('./routes/productRoutes');
 app.use('/api/product', productRoutes);
+const tradeRoutes = require('./routes/tradeRoutes');
+app.use('/api/trade', tradeRoutes);
+const loanRoutes = require('./routes/loanRoutes');
+app.use('/api/loan', loanRoutes);
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notification', notificationRoutes);
 // start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

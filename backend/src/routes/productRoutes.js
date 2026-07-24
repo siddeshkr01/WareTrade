@@ -10,6 +10,7 @@ router.delete('/:id', authMiddleware, productController.deleteProduct);
 
 // 🔹 Specific routes FIRST
 router.get('/my-products', authMiddleware, productController.getMyProducts);
+router.get('/search', authMiddleware, productController.searchProducts);
 router.get('/godowns-with-products/:id', authMiddleware, productController.getAllMygodownsWithProductAlongWithQuantity);
 
 // 🔹 Generic LAST

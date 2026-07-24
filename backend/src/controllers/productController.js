@@ -87,11 +87,21 @@ const getAllMygodownsWithProductAlongWithQuantity = async (req, res) => {
     }
 };
 
+const searchProducts = async (req, res) => {
+    try {
+        const products = await productService.searchProducts(req.query.query || '');
+        res.json(products);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     createProduct,
     editProduct,
     deleteProduct,
     getMyProducts,
     getProductDetails,
-    getAllMygodownsWithProductAlongWithQuantity
+    getAllMygodownsWithProductAlongWithQuantity,
+    searchProducts
 };

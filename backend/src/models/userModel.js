@@ -24,7 +24,28 @@ const findUserByPhoneOrUserId = async (identifier) => {
     return rows[0];
 };
 
+const findPublicUserByIdentifier = async (identifier) => {
+    const [rows] = await db.query(
+        `SELECT user_id, user_name, display_name FROM user
+         WHERE (phone_number = ? OR user_name = ?)
+         AND deleted = FALSE`,
+        [identifier, identifier]
+    );
+    return rows[0];
+};
+
+const findPublicProfileById = async (user_id) => {
+    const [rows] = await db.query(
+        `SELECT user_id, user_name, display_name, phone_number, address FROM user
+         WHERE user_id = ? AND deleted = FALSE`,
+        [user_id]
+    );
+    return rows[0];
+};
+
 module.exports = {
     createUser,
-    findUserByPhoneOrUserId
+    findUserByPhoneOrUserId,
+    findPublicUserByIdentifier,
+    findPublicProfileById
 };

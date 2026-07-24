@@ -6,6 +6,8 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/', authMiddleware, tradeController.createTrade);
 router.post('/:tradeId/items', authMiddleware, tradeController.addItemsToTrade);
+router.delete('/:tradeId/items/:productId', authMiddleware, tradeController.removeItem);
+router.post('/:tradeId/cancel', authMiddleware, tradeController.cancelTrade);
 router.post('/:tradeId/send', authMiddleware, tradeController.sendTradeRequest);
 router.post('/:tradeId/respond', authMiddleware, tradeController.respondToTradeRequest);
 

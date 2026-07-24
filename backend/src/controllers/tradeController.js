@@ -25,6 +25,31 @@ const addItemsToTrade = async (req, res) => {
     }
 };
 
+const removeItem = async (req, res) => {
+    try {
+        const tradeId = parseInt(req.params.tradeId);
+        const productId = parseInt(req.params.productId);
+        const userId = req.user.user_id;
+
+        await tradeService.removeItemFromTrade(tradeId, userId, productId);
+        res.json({ message: "Item removed" });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
+const cancelTrade = async (req, res) => {
+    try {
+        const tradeId = parseInt(req.params.tradeId);
+        const userId = req.user.user_id;
+
+        await tradeService.cancelTrade(tradeId, userId);
+        res.json({ message: "Trade cancelled" });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
 const sendTradeRequest = async (req, res) => {
     try {
         const tradeId = parseInt(req.params.tradeId);
@@ -41,9 +66,11 @@ const respondToTradeRequest = async (req, res) => {
     try {
         const tradeId = parseInt(req.params.tradeId);
         const response = req.body.response;
+        const allocations = req.body.allocations;
+        const expectedVersion = req.body.expected_version;
         const userId = req.user.user_id;
 
-        await tradeService.respondToTradeRequest(tradeId, userId, response);
+        await tradeService.respondToTradeRequest(tradeId, userId, response, allocations, expectedVersion);
         res.json({ message: `Trade ${response}ed successfully` });
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -103,6 +130,8 @@ const getTradeDetailsByTradeId = async (req, res) => {
 module.exports = {
     createTrade,
     addItemsToTrade,
+    removeItem,
+    cancelTrade,
     sendTradeRequest,
     respondToTradeRequest,
     getTradeByTradeId,

@@ -1,5 +1,6 @@
 const godownModel = require('../models/godownModel');
 const productModel = require('../models/productModel');
+const notificationService = require('./notificationService');
 
 const addGodown = async (data) => {
     const { godown_name, location, capacity, owner_id } = data;
@@ -91,8 +92,31 @@ const getUserActiveGodowns = async (user_id) => {
     return await godownModel.getUserActiveGodowns(user_id);
 };
 
+const getGodownStock = async (godown_id, user_id) => {
+    const current = await godownModel.getCurrentUser(godown_id);
+    if (!current) throw new Error("Godown not found");
+
+    if (current.owner_id !== user_id && current.tenant_id !== user_id) {
+        throw new Error("Unauthorized");
+    }
+
+    return await godownModel.getGodownStock(godown_id);
+};
+
+const searchAvailableGodowns = async (user_id, searchTerm) => {
+    return await godownModel.searchAvailableGodowns(user_id, searchTerm);
+};
+
 const getAllRequestsForRent = async (owner_id) => {
     return await godownModel.getAllRequestsForRent(owner_id);
+};
+
+const getActiveRentalsAsOwner = async (owner_id) => {
+    return await godownModel.getActiveRentalsAsOwner(owner_id);
+};
+
+const getRentalHistoryForUser = async (user_id) => {
+    return await godownModel.getRentalHistoryForUser(user_id);
 };
 
 const getAllRentedGodowns = async (tenant_id) => {
@@ -142,6 +166,15 @@ const removeStock = async (godown_id, product_id, quantity, user_id) => {
         throw new Error("Quantity must be positive");
     }
 
+    const { available, reserved } = await godownModel.getStockAvailability(godown_id, product_id);
+    if (quantity > available) {
+        throw new Error(
+            reserved > 0
+                ? `Insufficient available stock (${reserved} reserved for pending trades)`
+                : "Insufficient stock"
+        );
+    }
+
     const result = await godownModel.removeProductFromGodown(
         godown_id,
         product_id,
@@ -155,7 +188,11 @@ const removeStock = async (godown_id, product_id, quantity, user_id) => {
     return result;
 };
 
-const createRentalRequest = async (godown_id, tenant_id) => {
+const createRentalRequest = async (godown_id, tenant_id, rent_cost) => {
+    if (typeof rent_cost !== 'number' || rent_cost <= 0) {
+        throw new Error("Rent cost must be a positive number");
+    }
+
     const current = await godownModel.getCurrentUser(godown_id);
 
     if (!current) {
@@ -170,7 +207,16 @@ const createRentalRequest = async (godown_id, tenant_id) => {
         throw new Error("Godown already rented");
     }
 
-    return await godownModel.createRentalRequest(godown_id, tenant_id);
+    const result = await godownModel.createRentalRequest(godown_id, tenant_id, rent_cost);
+
+    await notificationService.notify({
+        user_id: current.owner_id,
+        type: 'rental_request',
+        message: `New rental request received (offer: ₹${rent_cost})`,
+        link: `/rentals`
+    });
+
+    return result;
 };
 
 const handleRentalRequest = async (rental_id, status, user_id) => {
@@ -184,7 +230,25 @@ const handleRentalRequest = async (rental_id, status, user_id) => {
     if (!['accepted', 'rejected'].includes(status)) {
         throw new Error("Invalid status");
     }
-    return await godownModel.updateRentalStatus(rental_id, status, user_id);
+    if (rental.status !== 'requested') {
+        throw new Error("Rental request has already been processed");
+    }
+    if (status === 'accepted') {
+        const activeRental = await godownModel.checkActiveRental(rental.godown_id);
+        if (activeRental) {
+            throw new Error("Godown is already rented out");
+        }
+    }
+    const result = await godownModel.updateRentalStatus(rental_id, status, user_id);
+
+    await notificationService.notify({
+        user_id: rental.tenant_id,
+        type: 'rental_response',
+        message: `Your rental request was ${status}`,
+        link: `/rentals`
+    });
+
+    return result;
 };
 
 const endRental = async (rental_id, user_id) => {
@@ -201,7 +265,16 @@ const endRental = async (rental_id, user_id) => {
     if (rental.tenant_id === user_id) {
         throw new Error("Tenants cannot end rentals. Contact the owner to end the rental.");
     }
-    return await godownModel.updateRentalStatus(rental_id, 'completed');
+    const result = await godownModel.updateRentalStatus(rental_id, 'completed', user_id);
+
+    await notificationService.notify({
+        user_id: rental.tenant_id,
+        type: 'rental_ended',
+        message: `A rental you had has been ended by the owner`,
+        link: `/rentals`
+    });
+
+    return result;
 };
 
 module.exports = {
@@ -209,8 +282,12 @@ module.exports = {
     editGodown,
     deleteGodown,
     getGodownDetails,
+    getGodownStock,
+    searchAvailableGodowns,
     getUserActiveGodowns,
     getAllRequestsForRent,
+    getActiveRentalsAsOwner,
+    getRentalHistoryForUser,
     getAllRentedGodowns,
     addStock,
     removeStock,

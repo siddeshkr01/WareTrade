@@ -4,7 +4,7 @@ const createTrade = async (tradeData) => {
     const { initiator_id, counterparty_id, trade_type } = tradeData;
 
     const [result] = await db.query(
-        `INSERT INTO trade (initiator_id, counterparty_id, trade_type, status) 
+        `INSERT INTO trade (initiator_id, counterparty_id, trade_type, status)
          VALUES (?, ?, ?, ?)`,
         [initiator_id, counterparty_id, trade_type, 'created']
     );
@@ -12,21 +12,50 @@ const createTrade = async (tradeData) => {
     return { trade_id: result.insertId };
 };
 
-const addItemsToTrade = async (tradeId, items) => {
+const addItemsToTrade = async (tradeId, items, conn = db) => {
     const values = items.map(item => [
         tradeId,
         item.product_id,
         item.quantity,
         item.price,
-        item.from_godown_id,
-        item.to_godown_id
+        item.from_godown_id ?? null,
+        item.to_godown_id ?? null
     ]);
 
-    await db.query(
-        `INSERT INTO trade_item 
-        (trade_id, product_id, quantity, price, from_godown_id, to_godown_id) 
+    await conn.query(
+        `INSERT INTO trade_item
+        (trade_id, product_id, quantity, price, from_godown_id, to_godown_id)
          VALUES ?`,
         [values]
+    );
+};
+
+const removeTradeItem = async (tradeId, productId, conn = db) => {
+    const [result] = await conn.query(
+        `DELETE FROM trade_item WHERE trade_id = ? AND product_id = ?`,
+        [tradeId, productId]
+    );
+    return result;
+};
+
+const setItemToGodown = async (tradeId, productId, toGodownId, conn = db) => {
+    await conn.query(
+        `UPDATE trade_item SET to_godown_id = ? WHERE trade_id = ? AND product_id = ?`,
+        [toGodownId, tradeId, productId]
+    );
+};
+
+const setItemFromGodown = async (tradeId, productId, fromGodownId, conn = db) => {
+    await conn.query(
+        `UPDATE trade_item SET from_godown_id = ? WHERE trade_id = ? AND product_id = ?`,
+        [fromGodownId, tradeId, productId]
+    );
+};
+
+const bumpVersion = async (tradeId, conn = db) => {
+    await conn.query(
+        `UPDATE trade SET version = version + 1 WHERE trade_id = ?`,
+        [tradeId]
     );
 };
 
@@ -37,8 +66,8 @@ const sendTradeRequest = async (tradeId) => {
     );
 };
 
-const acceptTradeRequest = async (tradeId) => {
-    await db.query(
+const acceptTradeRequest = async (tradeId, conn = db) => {
+    await conn.query(
         `UPDATE trade SET status = 'accepted' WHERE trade_id = ?`,
         [tradeId]
     );
@@ -47,6 +76,13 @@ const acceptTradeRequest = async (tradeId) => {
 const rejectTradeRequest = async (tradeId) => {
     await db.query(
         `UPDATE trade SET status = 'rejected' WHERE trade_id = ?`,
+        [tradeId]
+    );
+};
+
+const cancelTradeRequest = async (tradeId) => {
+    await db.query(
+        `UPDATE trade SET status = 'cancelled' WHERE trade_id = ?`,
         [tradeId]
     );
 };
@@ -61,7 +97,11 @@ const getTradeByTradeId = async (tradeId) => {
 
 const getInitiatedTradesByUserId = async (userId) => {
     const [rows] = await db.query(
-        `SELECT * FROM trade WHERE initiator_id = ?`,
+        `SELECT t.*, u.user_name AS counterparty_name
+         FROM trade t
+         JOIN user u ON t.counterparty_id = u.user_id
+         WHERE t.initiator_id = ?
+         ORDER BY t.created_at DESC`,
         [userId]
     );
     return rows;
@@ -69,7 +109,11 @@ const getInitiatedTradesByUserId = async (userId) => {
 
 const getReceivedTradesByUserId = async (userId) => {
     const [rows] = await db.query(
-        `SELECT * FROM trade WHERE counterparty_id = ?`,
+        `SELECT t.*, u.user_name AS initiator_name
+         FROM trade t
+         JOIN user u ON t.initiator_id = u.user_id
+         WHERE t.counterparty_id = ?
+         ORDER BY t.created_at DESC`,
         [userId]
     );
     return rows;
@@ -95,9 +139,14 @@ const getTradeDetailsByTradeId = async (tradeId) => {
 module.exports = {
     createTrade,
     addItemsToTrade,
+    removeTradeItem,
+    setItemToGodown,
+    setItemFromGodown,
+    bumpVersion,
     sendTradeRequest,
     acceptTradeRequest,
     rejectTradeRequest,
+    cancelTradeRequest,
     getTradeByTradeId,
     getInitiatedTradesByUserId,
     getReceivedTradesByUserId,

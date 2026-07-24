@@ -88,6 +88,32 @@ const getGodownDetails = async (req, res) => {
     }
 };
 
+// 🔹 Get Products Stored In a Godown
+const getGodownStock = async (req, res) => {
+    try {
+        const godown_id = parseInt(req.params.id);
+        if (isNaN(godown_id)) {
+            return res.status(400).json({ error: "Invalid godown ID" });
+        }
+
+        const stock = await godownService.getGodownStock(godown_id, req.user.user_id);
+        res.json(stock);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
+// 🔹 Search Other Users' Godowns Available To Rent
+const searchAvailableGodowns = async (req, res) => {
+    try {
+        const searchTerm = req.query.query || '';
+        const godowns = await godownService.searchAvailableGodowns(req.user.user_id, searchTerm);
+        res.json(godowns);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 // 🔹 Get Rental Requests (owner)
 const getRentalRequests = async (req, res) => {
     try {
@@ -96,6 +122,27 @@ const getRentalRequests = async (req, res) => {
         const requests = await godownService.getAllRequestsForRent(owner_id);
 
         res.json(requests);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// 🔹 Get Active Rentals I Own (for ending)
+const getActiveRentalsAsOwner = async (req, res) => {
+    try {
+        const owner_id = req.user.user_id;
+        const rentals = await godownService.getActiveRentalsAsOwner(owner_id);
+        res.json(rentals);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// 🔹 Get Full Rental History (as tenant or owner, any status)
+const getRentalHistory = async (req, res) => {
+    try {
+        const rentals = await godownService.getRentalHistoryForUser(req.user.user_id);
+        res.json(rentals);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -144,16 +191,21 @@ const addStock = async (req, res) => {
 
 const requestRental = async (req, res) => {
     try {
-        const { godown_id } = req.body;
+        const { godown_id, rent_cost } = req.body;
         const parsedId = parseInt(godown_id);
+        const parsedRentCost = parseFloat(rent_cost);
 
         if (isNaN(parsedId)) {
             return res.status(400).json({ error: "Invalid godown ID" });
         }
+        if (isNaN(parsedRentCost)) {
+            return res.status(400).json({ error: "Invalid rent cost" });
+        }
 
         await godownService.createRentalRequest(
             parsedId,
-            req.user.user_id
+            req.user.user_id,
+            parsedRentCost
         );
 
         res.json({ message: "Rental request sent" });
@@ -239,7 +291,11 @@ module.exports = {
     deleteGodown,
     getMyGodowns,
     getGodownDetails,
+    getGodownStock,
+    searchAvailableGodowns,
     getRentalRequests,
+    getActiveRentalsAsOwner,
+    getRentalHistory,
     getRentedGodowns,
     addStock,
     removeStock,

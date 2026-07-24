@@ -126,7 +126,8 @@ CREATE TABLE trade (
 
     trade_type ENUM('buy', 'sell') NOT NULL,
 
-    status ENUM('created', 'pending', 'accepted', 'rejected') DEFAULT 'created',
+    status ENUM('created', 'pending', 'accepted', 'rejected', 'cancelled') DEFAULT 'created',
+    version INT NOT NULL DEFAULT 1,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -139,9 +140,73 @@ CREATE TABLE trade_item (
     product_id INT,
     quantity INT NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    from_godown_id INT NOT NULL,
+    from_godown_id INT,
+    to_godown_id INT,
     PRIMARY KEY (trade_id, product_id),
 
     FOREIGN KEY (trade_id) REFERENCES trade(trade_id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES product(product_id)
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+-- =========================
+-- LOAN TABLE (single-table ledger, Merchant's Rule interest)
+-- =========================
+-- One row per cash-flow event between a lender and borrower. A loan starts
+-- life as a single 'disbursement' row (loan_id = its own transaction_id,
+-- carrying the propose/accept lifecycle). Each partial repayment is a
+-- separate 'repayment' row referencing that same loan_id, with no lifecycle
+-- of its own (either party can log one directly once the loan is active).
+--
+-- Interest uses the Merchant's Rule convention: every row is independently
+-- future-valued via simple interest from its own effective_date to the
+-- settlement date, and the current balance is the signed sum across all
+-- rows for a loan_id (disbursement = +amount, repayment = -amount). This
+-- avoids needing to replay history in order or track a running principal.
+--
+-- loan_id deliberately has no FK constraint (it would self-reference before
+-- the row exists); it's just an indexed grouping key.
+CREATE TABLE loan_transaction (
+    transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    loan_id INT NOT NULL,
+
+    transaction_type ENUM('disbursement', 'repayment') NOT NULL,
+
+    lender_id INT NOT NULL,
+    borrower_id INT NOT NULL,
+    initiator_id INT NULL,
+    counterparty_id INT NULL,
+
+    amount DECIMAL(12,2) NOT NULL,
+    annual_interest_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+
+    status ENUM('created', 'pending', 'active', 'rejected', 'cancelled', 'closed') NOT NULL DEFAULT 'active',
+
+    effective_date DATETIME NULL,
+    closed_at DATETIME NULL,
+
+    recorded_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_loan_id (loan_id),
+    FOREIGN KEY (lender_id) REFERENCES user(user_id),
+    FOREIGN KEY (borrower_id) REFERENCES user(user_id),
+    FOREIGN KEY (initiator_id) REFERENCES user(user_id),
+    FOREIGN KEY (counterparty_id) REFERENCES user(user_id),
+    FOREIGN KEY (recorded_by) REFERENCES user(user_id)
+);
+
+-- =========================
+-- NOTIFICATION TABLE
+-- =========================
+CREATE TABLE notification (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(40) NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    link VARCHAR(255) NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_user_unread (user_id, is_read),
+    FOREIGN KEY (user_id) REFERENCES user(user_id)
 );

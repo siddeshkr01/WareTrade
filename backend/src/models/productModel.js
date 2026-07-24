@@ -128,6 +128,21 @@ const getAllMygodownsWithProductAlongWithQuantity = async (user_id, product_id) 
     return rows;
 };
 
+const searchProducts = async (searchTerm) => {
+    const params = [];
+    let sql = `SELECT product_id, product_name, category FROM products WHERE deleted = FALSE`;
+
+    if (searchTerm) {
+        sql += ` AND (product_name LIKE ? OR category LIKE ?)`;
+        params.push(`%${searchTerm}%`, `%${searchTerm}%`);
+    }
+
+    sql += ` ORDER BY product_name LIMIT 20`;
+
+    const [rows] = await db.query(sql, params);
+    return rows;
+};
+
 const getProductDetailsById = async (product_id) => {
     const [rows] = await db.query(
         `SELECT * FROM products 
@@ -146,5 +161,6 @@ module.exports = {
     deleteProduct,
     getProductsByUserId,
     getAllMygodownsWithProductAlongWithQuantity,
-    getProductDetailsById
+    getProductDetailsById,
+    searchProducts
 };
