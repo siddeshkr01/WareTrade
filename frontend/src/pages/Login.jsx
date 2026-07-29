@@ -21,6 +21,11 @@ const Login = () => {
         address: ""
     });
 
+    const [forgotIdentifier, setForgotIdentifier] = useState("");
+    const [resetToken, setResetToken] = useState(null);
+    const [resetForm, setResetForm] = useState({ token: "", new_password: "", confirm_password: "" });
+    const [success, setSuccess] = useState("");
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setError("");
@@ -51,6 +56,53 @@ const Login = () => {
         }
     };
 
+    const switchMode = (nextMode) => {
+        setMode(nextMode);
+        setError("");
+        setSuccess("");
+        setResetToken(null);
+        setResetForm({ token: "", new_password: "", confirm_password: "" });
+    };
+
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setError("");
+        setSuccess("");
+        setLoading(true);
+        try {
+            const res = await API.post("/user/forgot-password", { identifier: forgotIdentifier });
+            setResetToken(res.data.reset_token);
+            setResetForm({ ...resetForm, token: res.data.reset_token });
+        } catch (err) {
+            setError(err.response?.data?.error || "Failed to generate reset token");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setError("");
+        if (resetForm.new_password !== resetForm.confirm_password) {
+            setError("Passwords do not match");
+            return;
+        }
+        setLoading(true);
+        try {
+            await API.post("/user/reset-password", {
+                token: resetForm.token,
+                new_password: resetForm.new_password
+            });
+            switchMode("login");
+            setSuccess("Password reset — you can log in now.");
+            setLoginForm({ identifier: forgotIdentifier, password: "" });
+        } catch (err) {
+            setError(err.response?.data?.error || "Failed to reset password");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div style={{
             minHeight: "100vh",
@@ -69,26 +121,30 @@ const Login = () => {
                 </div>
 
                 <div className="card" style={{ padding: 24 }}>
-                    <div className="tabs" style={{ marginBottom: 20 }}>
-                        <button
-                            type="button"
-                            className={`tab ${mode === 'login' ? 'active' : ''}`}
-                            style={{ flex: 1, textAlign: "center" }}
-                            onClick={() => { setMode('login'); setError(''); }}
-                        >
-                            Log in
-                        </button>
-                        <button
-                            type="button"
-                            className={`tab ${mode === 'register' ? 'active' : ''}`}
-                            style={{ flex: 1, textAlign: "center" }}
-                            onClick={() => { setMode('register'); setError(''); }}
-                        >
-                            Register
-                        </button>
-                    </div>
+                    {mode !== "forgot" && (
+                        <div className="tabs" style={{ marginBottom: 20 }}>
+                            <button
+                                type="button"
+                                className={`tab ${mode === 'login' ? 'active' : ''}`}
+                                style={{ flex: 1, textAlign: "center" }}
+                                onClick={() => switchMode('login')}
+                            >
+                                Log in
+                            </button>
+                            <button
+                                type="button"
+                                className={`tab ${mode === 'register' ? 'active' : ''}`}
+                                style={{ flex: 1, textAlign: "center" }}
+                                onClick={() => switchMode('register')}
+                            >
+                                Register
+                            </button>
+                        </div>
+                    )}
 
-                    {mode === "login" ? (
+                    {success && <p className="success-text">{success}</p>}
+
+                    {mode === "login" && (
                         <form onSubmit={handleLogin}>
                             <div className="form-group">
                                 <label htmlFor="identifier">Phone number or username</label>
@@ -114,8 +170,101 @@ const Login = () => {
                             <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: "100%" }}>
                                 {loading ? "Logging in..." : "Log in"}
                             </button>
+                            <button
+                                type="button"
+                                className="btn-link"
+                                style={{ display: "block", margin: "12px auto 0", fontSize: 13 }}
+                                onClick={() => switchMode('forgot')}
+                            >
+                                Forgot password?
+                            </button>
                         </form>
-                    ) : (
+                    )}
+
+                    {mode === "forgot" && (
+                        <>
+                            {!resetToken ? (
+                                <form onSubmit={handleForgotPassword}>
+                                    <p className="muted" style={{ marginTop: 0 }}>
+                                        Enter your phone number or username and we'll generate a reset link.
+                                    </p>
+                                    <div className="form-group">
+                                        <label htmlFor="forgot_identifier">Phone number or username</label>
+                                        <input
+                                            id="forgot_identifier"
+                                            className="input"
+                                            value={forgotIdentifier}
+                                            onChange={(e) => setForgotIdentifier(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: "100%" }}>
+                                        {loading ? "Generating..." : "Send Reset Link"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-link"
+                                        style={{ display: "block", margin: "12px auto 0", fontSize: 13 }}
+                                        onClick={() => switchMode('login')}
+                                    >
+                                        Back to log in
+                                    </button>
+                                </form>
+                            ) : (
+                                <form onSubmit={handleResetPassword}>
+                                    <p className="muted" style={{ marginTop: 0 }}>
+                                        No email/SMS is configured for this app, so here's your reset token directly
+                                        (in production this would be emailed or texted to you instead).
+                                    </p>
+                                    <div className="form-group">
+                                        <label htmlFor="reset_token">Reset token</label>
+                                        <input
+                                            id="reset_token"
+                                            className="input"
+                                            style={{ fontFamily: "monospace", fontSize: 12.5 }}
+                                            value={resetForm.token}
+                                            readOnly
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="new_password">New password</label>
+                                        <input
+                                            id="new_password"
+                                            className="input"
+                                            type="password"
+                                            value={resetForm.new_password}
+                                            onChange={(e) => setResetForm({ ...resetForm, new_password: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="confirm_password">Confirm new password</label>
+                                        <input
+                                            id="confirm_password"
+                                            className="input"
+                                            type="password"
+                                            value={resetForm.confirm_password}
+                                            onChange={(e) => setResetForm({ ...resetForm, confirm_password: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: "100%" }}>
+                                        {loading ? "Resetting..." : "Reset Password"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-link"
+                                        style={{ display: "block", margin: "12px auto 0", fontSize: 13 }}
+                                        onClick={() => switchMode('login')}
+                                    >
+                                        Back to log in
+                                    </button>
+                                </form>
+                            )}
+                        </>
+                    )}
+
+                    {mode === "register" && (
                         <form onSubmit={handleRegister}>
                             <div className="form-group">
                                 <label htmlFor="user_name">Username</label>

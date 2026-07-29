@@ -1,9 +1,11 @@
 import { useContext, useEffect, useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 import { AuthContext } from "../context/authContextValue";
 import { ConfirmContext } from "../context/confirmContextValue";
+import { ToastContext } from "../context/toastContextValue";
 import { IconInbox } from "../components/Icons";
+import CounterOfferModal from "../components/CounterOfferModal";
 import { markNotificationsReadByLink } from "../utils/notifications";
 
 const statusClass = (status) => `badge badge-${status}`;
@@ -12,8 +14,10 @@ const CONFLICT_HINT = "changed since you loaded it";
 
 const TradeDetail = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
     const { user } = useContext(AuthContext);
     const confirm = useContext(ConfirmContext);
+    const showToast = useContext(ToastContext);
 
     const [trade, setTrade] = useState(null);
     const [error, setError] = useState("");
@@ -35,17 +39,18 @@ const TradeDetail = () => {
     const [productResults, setProductResults] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
 
-    const [addError, setAddError] = useState("");
     const [addBusy, setAddBusy] = useState(false);
     const [removeBusyId, setRemoveBusyId] = useState(null);
 
     const [allocations, setAllocations] = useState({});
-    const [respondError, setRespondError] = useState("");
     const [respondBusy, setRespondBusy] = useState(false);
 
     const [sendBusy, setSendBusy] = useState(false);
-    const [sendError, setSendError] = useState("");
     const [cancelBusy, setCancelBusy] = useState(false);
+
+    const [showCounterModal, setShowCounterModal] = useState(false);
+    const [counterBusy, setCounterBusy] = useState(false);
+    const [counterError, setCounterError] = useState("");
 
     const resolveNames = useCallback(async (items) => {
         const productIds = [...new Set(items.map(i => i.product_id))];
@@ -145,7 +150,6 @@ const TradeDetail = () => {
 
     const handleAddSellItem = async (e) => {
         e.preventDefault();
-        setAddError("");
         setAddBusy(true);
         try {
             await API.post(`/trade/${id}/items`, {
@@ -160,7 +164,7 @@ const TradeDetail = () => {
             setFromGodownStock([]);
             load();
         } catch (err) {
-            setAddError(err.response?.data?.error || "Failed to add item");
+            showToast(err.response?.data?.error || "Failed to add item");
         } finally {
             setAddBusy(false);
         }
@@ -168,9 +172,8 @@ const TradeDetail = () => {
 
     const handleAddBuyItem = async (e) => {
         e.preventDefault();
-        setAddError("");
         if (!selectedProduct) {
-            setAddError("Search for and select a product first");
+            showToast("Search for and select a product first");
             return;
         }
         setAddBusy(true);
@@ -189,7 +192,7 @@ const TradeDetail = () => {
             setProductResults([]);
             load();
         } catch (err) {
-            setAddError(err.response?.data?.error || "Failed to add item");
+            showToast(err.response?.data?.error || "Failed to add item");
         } finally {
             setAddBusy(false);
         }
@@ -197,25 +200,23 @@ const TradeDetail = () => {
 
     const handleRemoveItem = async (productId) => {
         setRemoveBusyId(productId);
-        setAddError("");
         try {
             await API.delete(`/trade/${id}/items/${productId}`);
             load();
         } catch (err) {
-            setAddError(err.response?.data?.error || "Failed to remove item");
+            showToast(err.response?.data?.error || "Failed to remove item");
         } finally {
             setRemoveBusyId(null);
         }
     };
 
     const handleSend = async () => {
-        setSendError("");
         setSendBusy(true);
         try {
             await API.post(`/trade/${id}/send`);
             load();
         } catch (err) {
-            setSendError(err.response?.data?.error || "Failed to send trade");
+            showToast(err.response?.data?.error || "Failed to send trade");
         } finally {
             setSendBusy(false);
         }
@@ -224,25 +225,23 @@ const TradeDetail = () => {
     const handleCancel = async () => {
         if (!(await confirm("Cancel this trade?"))) return;
         setCancelBusy(true);
-        setSendError("");
         try {
             await API.post(`/trade/${id}/cancel`);
             load();
         } catch (err) {
-            setSendError(err.response?.data?.error || "Failed to cancel trade");
+            showToast(err.response?.data?.error || "Failed to cancel trade");
         } finally {
             setCancelBusy(false);
         }
     };
 
     const handleRespond = async (response) => {
-        setRespondError("");
         setConflict(false);
 
         if (response === 'accept') {
             const missing = trade.items.some(i => !allocations[i.product_id]);
             if (missing) {
-                setRespondError("Choose a godown for every item");
+                showToast("Choose a godown for every item");
                 return;
             }
         }
@@ -263,10 +262,24 @@ const TradeDetail = () => {
             if (msg.includes(CONFLICT_HINT)) {
                 setConflict(true);
             } else {
-                setRespondError(msg);
+                showToast(msg);
             }
         } finally {
             setRespondBusy(false);
+        }
+    };
+
+    const handleCounterConfirm = async (items) => {
+        setCounterError("");
+        setCounterBusy(true);
+        try {
+            const res = await API.post(`/trade/${id}/counter`, { items });
+            setShowCounterModal(false);
+            navigate(`/trades/${res.data.trade_id}`);
+        } catch (err) {
+            setCounterError(err.response?.data?.error || "Failed to counter trade");
+        } finally {
+            setCounterBusy(false);
         }
     };
 
@@ -292,6 +305,19 @@ const TradeDetail = () => {
                     <span>This trade was updated since you loaded it. Refresh to see the latest details before responding.</span>
                     <button className="btn btn-sm" onClick={load}>Refresh</button>
                 </div>
+            )}
+
+            {trade.status === 'countered' && trade.countered_by_trade_id && (
+                <div className="conflict-banner">
+                    <span>This trade was countered with new terms.</span>
+                    <Link className="btn btn-sm" to={`/trades/${trade.countered_by_trade_id}`}>View Counter-Offer</Link>
+                </div>
+            )}
+
+            {trade.counter_of_trade_id && (
+                <p className="muted" style={{ marginTop: -8 }}>
+                    This is a counter-offer to <Link to={`/trades/${trade.counter_of_trade_id}`}>trade #{trade.counter_of_trade_id}</Link>.
+                </p>
             )}
 
             <div className="section-title" style={{ marginTop: 0 }}>Items</div>
@@ -408,17 +434,25 @@ const TradeDetail = () => {
                             {productResults.length > 0 && (
                                 <ul className="list" style={{ marginTop: 10 }}>
                                     {productResults.map((p) => (
-                                        <li
-                                            key={p.product_id}
-                                            className="card clickable"
-                                            style={{
-                                                padding: 10,
-                                                borderColor: selectedProduct?.product_id === p.product_id ? "var(--color-primary)" : undefined,
-                                                background: selectedProduct?.product_id === p.product_id ? "var(--color-primary-light)" : undefined
-                                            }}
-                                            onClick={() => setSelectedProduct(p)}
-                                        >
-                                            {p.product_name} — {p.category}
+                                        <li key={p.product_id}>
+                                            <button
+                                                type="button"
+                                                className="card clickable"
+                                                style={{
+                                                    display: "block",
+                                                    width: "100%",
+                                                    textAlign: "left",
+                                                    padding: 10,
+                                                    font: "inherit",
+                                                    color: "inherit",
+                                                    border: "1px solid var(--color-border)",
+                                                    borderColor: selectedProduct?.product_id === p.product_id ? "var(--color-primary)" : undefined,
+                                                    background: selectedProduct?.product_id === p.product_id ? "var(--color-primary-light)" : "var(--color-surface)"
+                                                }}
+                                                onClick={() => setSelectedProduct(p)}
+                                            >
+                                                {p.product_name} — {p.category}
+                                            </button>
                                         </li>
                                     ))}
                                 </ul>
@@ -473,7 +507,6 @@ const TradeDetail = () => {
                             )}
                         </>
                     )}
-                    {addError && <p className="error-text">{addError}</p>}
 
                     <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
                         {trade.status === 'created' && trade.items?.length > 0 && (
@@ -485,7 +518,6 @@ const TradeDetail = () => {
                             Cancel Trade
                         </button>
                     </div>
-                    {sendError && <p className="error-text">{sendError}</p>}
                     {trade.status === 'pending' && (
                         <p className="muted" style={{ marginTop: 8 }}>
                             This trade is already with {trade.trade_type === 'sell' ? 'the buyer' : 'the seller'}. Any edits here will require them to refresh before responding.
@@ -522,12 +554,26 @@ const TradeDetail = () => {
                             </select>
                         </div>
                     ))}
-                    {respondError && <p className="error-text">{respondError}</p>}
                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                         <button className="btn btn-primary" onClick={() => handleRespond('accept')} disabled={respondBusy}>Accept</button>
                         <button className="btn btn-danger" onClick={() => handleRespond('reject')} disabled={respondBusy}>Reject</button>
+                        <button className="btn" onClick={() => { setCounterError(""); setShowCounterModal(true); }} disabled={counterBusy}>
+                            Counter Offer
+                        </button>
                     </div>
                 </div>
+            )}
+
+            {showCounterModal && (
+                <CounterOfferModal
+                    trade={trade}
+                    productNames={productNames}
+                    myGodowns={myGodowns}
+                    busy={counterBusy}
+                    error={counterError}
+                    onConfirm={handleCounterConfirm}
+                    onClose={() => setShowCounterModal(false)}
+                />
             )}
         </div>
     );

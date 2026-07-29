@@ -9,6 +9,7 @@ const GodownDetail = () => {
 
     const [godown, setGodown] = useState(null);
     const [stock, setStock] = useState([]);
+    const [history, setHistory] = useState([]);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
 
@@ -25,11 +26,13 @@ const GodownDetail = () => {
         setError("");
         Promise.all([
             API.get(`/godown/${id}`),
-            API.get(`/godown/${id}/stock`)
+            API.get(`/godown/${id}/stock`),
+            API.get(`/godown/${id}/history`)
         ])
-            .then(([godownRes, stockRes]) => {
+            .then(([godownRes, stockRes, historyRes]) => {
                 setGodown(godownRes.data);
                 setStock(stockRes.data);
+                setHistory(historyRes.data);
             })
             .catch((err) => setError(err.response?.data?.error || "Failed to load godown"))
             .finally(() => setLoading(false));
@@ -200,6 +203,30 @@ const GodownDetail = () => {
                     </form>
                     {removeError && <p className="error-text">{removeError}</p>}
                 </div>
+            )}
+
+            <div className="section-title">Stock History</div>
+            {history.length === 0 ? (
+                <div className="empty-state"><IconInbox /><p>No stock movements recorded yet.</p></div>
+            ) : (
+                <ul className="list">
+                    {history.map((h) => (
+                        <li key={h.id} className="card">
+                            <div className="card-row">
+                                <div>
+                                    <span className={`badge ${h.action_type === 'add' ? 'badge-active' : 'badge-rejected'}`}>
+                                        {h.action_type === 'add' ? 'Added' : 'Removed'}
+                                    </span>
+                                    <div className="muted" style={{ marginTop: 4 }}>{h.product_name}</div>
+                                </div>
+                                <div style={{ textAlign: "right" }}>
+                                    <strong>{h.quantity_change}</strong>
+                                    <div className="muted" style={{ fontSize: 12 }}>{new Date(h.created_at).toLocaleString()}</div>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             )}
         </div>
     );

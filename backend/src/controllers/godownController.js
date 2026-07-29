@@ -103,6 +103,21 @@ const getGodownStock = async (req, res) => {
     }
 };
 
+// 🔹 Get Stock Movement History For a Godown
+const getStockHistory = async (req, res) => {
+    try {
+        const godown_id = parseInt(req.params.id);
+        if (isNaN(godown_id)) {
+            return res.status(400).json({ error: "Invalid godown ID" });
+        }
+
+        const history = await godownService.getStockHistory(godown_id, req.user.user_id);
+        res.json(history);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
 // 🔹 Search Other Users' Godowns Available To Rent
 const searchAvailableGodowns = async (req, res) => {
     try {
@@ -292,6 +307,7 @@ module.exports = {
     getMyGodowns,
     getGodownDetails,
     getGodownStock,
+    getStockHistory,
     searchAvailableGodowns,
     getRentalRequests,
     getActiveRentalsAsOwner,

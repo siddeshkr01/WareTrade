@@ -10,6 +10,8 @@ CREATE TABLE `user` (
   `role` enum('admin','user') DEFAULT 'user',
   `display_name` varchar(100) DEFAULT NULL,
   `deleted` tinyint(1) DEFAULT 0,
+  `reset_token` varchar(255) DEFAULT NULL,
+  `reset_token_expires` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`user_id`),
@@ -118,6 +120,9 @@ CREATE TABLE `store_history` (
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- counter_of_trade_id / countered_by_trade_id deliberately carry no FK
+-- constraint (self-referencing across rows created after one another), same
+-- reasoning as loan_transaction.loan_id — just an indexed linking column.
 CREATE TABLE trade (
     trade_id INT AUTO_INCREMENT PRIMARY KEY,
 
@@ -126,8 +131,11 @@ CREATE TABLE trade (
 
     trade_type ENUM('buy', 'sell') NOT NULL,
 
-    status ENUM('created', 'pending', 'accepted', 'rejected', 'cancelled') DEFAULT 'created',
+    status ENUM('created', 'pending', 'accepted', 'rejected', 'cancelled', 'countered') DEFAULT 'created',
     version INT NOT NULL DEFAULT 1,
+
+    counter_of_trade_id INT NULL,
+    countered_by_trade_id INT NULL,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

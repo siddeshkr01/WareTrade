@@ -10,6 +10,7 @@ router.delete('/:tradeId/items/:productId', authMiddleware, tradeController.remo
 router.post('/:tradeId/cancel', authMiddleware, tradeController.cancelTrade);
 router.post('/:tradeId/send', authMiddleware, tradeController.sendTradeRequest);
 router.post('/:tradeId/respond', authMiddleware, tradeController.respondToTradeRequest);
+router.post('/:tradeId/counter', authMiddleware, tradeController.counterTrade);
 
 // ✅ static routes first
 router.get('/initiated', authMiddleware, tradeController.getInitiatedTradesByUserId);

@@ -20,6 +20,7 @@ router.post('/rent/respond', authMiddleware, godownController.handleRentalReques
 router.post('/rent/end', authMiddleware, godownController.endRental);
 
 router.get('/:id/stock', authMiddleware, godownController.getGodownStock);
+router.get('/:id/history', authMiddleware, godownController.getStockHistory);
 router.get('/:id', authMiddleware, godownController.getGodownDetails);
 
 module.exports = router;

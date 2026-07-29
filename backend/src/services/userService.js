@@ -1,6 +1,9 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const userModel = require('../models/userModel');
+
+const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
 
 const registerUser = async (data) => {
     if (!data.user_name?.trim() || data.user_name.trim().length < 3) {
@@ -74,9 +77,41 @@ const getPublicProfile = async (user_id) => {
     return profile;
 };
 
+// No email/SMS provider is configured for this app, so the reset token is
+// handed back to the caller instead of being delivered out-of-band — the
+// frontend surfaces it directly with a note that this stands in for an
+// emailed/texted link in production.
+const requestPasswordReset = async (identifier) => {
+    const user = await userModel.findUserByPhoneOrUserId(identifier);
+    if (!user) throw new Error('User not found');
+
+    const token = crypto.randomBytes(24).toString('hex');
+    const expires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+    await userModel.setResetToken(user.user_id, token, expires);
+
+    return { reset_token: token, expires_at: expires };
+};
+
+const resetPassword = async (token, newPassword) => {
+    if (!newPassword || newPassword.length < 6) {
+        throw new Error('Password must be at least 6 characters');
+    }
+
+    const user = await userModel.findByResetToken(token);
+    if (!user || !user.reset_token_expires || new Date(user.reset_token_expires) < new Date()) {
+        throw new Error('Invalid or expired reset token');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await userModel.updatePasswordAndClearToken(user.user_id, hashedPassword);
+};
+
 module.exports = {
     registerUser,
     loginUser,
     findPublicUser,
-    getPublicProfile
+    getPublicProfile,
+    requestPasswordReset,
+    resetPassword
 };

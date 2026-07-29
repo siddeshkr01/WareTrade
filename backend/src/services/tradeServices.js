@@ -242,6 +242,44 @@ const respondToTradeRequest = async (tradeId, userId, response, allocations, exp
     }
 };
 
+// A counter-offer is a fresh trade with initiator/counterparty swapped and
+// trade_type flipped (the original counterparty is now proposing terms back
+// to the original initiator), which reuses the entire existing
+// create-items-send-accept pipeline unchanged instead of teaching the
+// accept-transaction code about mid-negotiation turn-taking. The caller
+// supplies the full edited item list up front (quantity/price/godown per
+// item) so the whole thing — create, add items, send — happens in one call;
+// the original trade is only marked 'countered' once all of that succeeds,
+// so a failed counter-offer leaves the original untouched and still
+// respondable rather than closing it out with nothing to replace it.
+const counterTrade = async (tradeId, userId, items) => {
+    const trade = await tradeModel.getTradeByTradeId(tradeId);
+
+    if (!trade) throw new Error("Trade not found");
+    if (trade.counterparty_id !== userId)
+        throw new Error("Only the receiver can counter this trade");
+    if (trade.status !== 'pending')
+        throw new Error("Trade is not awaiting a response");
+    if (!Array.isArray(items) || items.length === 0)
+        throw new Error("At least one item is required for a counter-offer");
+
+    const newType = trade.trade_type === 'sell' ? 'buy' : 'sell';
+
+    const created = await tradeModel.createTrade({
+        initiator_id: userId,
+        counterparty_id: trade.initiator_id,
+        trade_type: newType,
+        counter_of_trade_id: tradeId
+    });
+
+    await addItemsToTrade(created.trade_id, userId, items);
+    await sendTradeRequest(created.trade_id, userId);
+
+    await tradeModel.markCountered(tradeId, created.trade_id);
+
+    return created;
+};
+
 const getTradeByTradeId = async (tradeId) => {
     return await tradeModel.getTradeByTradeId(tradeId);
 };
@@ -269,6 +307,7 @@ module.exports = {
     cancelTrade,
     sendTradeRequest,
     respondToTradeRequest,
+    counterTrade,
     getTradeByTradeId,
     getInitiatedTradesByUserId,
     getReceivedTradesByUserId,

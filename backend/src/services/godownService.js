@@ -103,6 +103,17 @@ const getGodownStock = async (godown_id, user_id) => {
     return await godownModel.getGodownStock(godown_id);
 };
 
+const getStockHistory = async (godown_id, user_id) => {
+    const current = await godownModel.getCurrentUser(godown_id);
+    if (!current) throw new Error("Godown not found");
+
+    if (current.owner_id !== user_id && current.tenant_id !== user_id) {
+        throw new Error("Unauthorized");
+    }
+
+    return await godownModel.getStockHistory(godown_id);
+};
+
 const searchAvailableGodowns = async (user_id, searchTerm) => {
     return await godownModel.searchAvailableGodowns(user_id, searchTerm);
 };
@@ -283,6 +294,7 @@ module.exports = {
     deleteGodown,
     getGodownDetails,
     getGodownStock,
+    getStockHistory,
     searchAvailableGodowns,
     getUserActiveGodowns,
     getAllRequestsForRent,

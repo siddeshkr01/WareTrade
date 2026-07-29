@@ -6,6 +6,8 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/register', userController.register);
 router.post('/login', userController.login);
+router.post('/forgot-password', userController.forgotPassword);
+router.post('/reset-password', userController.resetPassword);
 router.get('/lookup', authMiddleware, userController.lookupUser);
 router.get('/:id/profile', authMiddleware, userController.getPublicProfile);
 

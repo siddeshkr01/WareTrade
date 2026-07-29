@@ -5,13 +5,16 @@ import App from './App.jsx'
 
 import { AuthProvider } from "./context/AuthContext";
 import { ConfirmProvider } from "./context/ConfirmProvider";
+import { ToastProvider } from "./context/ToastProvider";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <ConfirmProvider>
-        <App />
-      </ConfirmProvider>
+      <ToastProvider>
+        <ConfirmProvider>
+          <App />
+        </ConfirmProvider>
+      </ToastProvider>
     </AuthProvider>
   </StrictMode>,
 )

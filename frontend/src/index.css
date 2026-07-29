@@ -481,6 +481,7 @@ h1, h2, h3 {
 .badge-requested { background: var(--color-warning-light); color: #92400e; }
 .badge-active { background: var(--color-success-light); color: #065f46; }
 .badge-closed { background: #e5e7eb; color: #374151; }
+.badge-countered { background: var(--color-warning-light); color: #92400e; }
 
 /* ---------- stat cards ---------- */
 
@@ -660,6 +661,73 @@ h1, h2, h3 {
 
 .notif-item.unread {
     background: var(--color-primary-light);
+}
+
+/* ---------- charts ---------- */
+
+.chart-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.chart-bar-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 120px 1fr 34px;
+    align-items: center;
+    gap: 10px;
+    outline: none;
+}
+
+.chart-bar-label {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chart-bar-track {
+    height: 16px;
+    background: var(--color-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.chart-bar-fill {
+    height: 100%;
+    border-radius: 0 4px 4px 0;
+    transition: width 0.3s ease;
+}
+
+.chart-bar-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.chart-bar-tooltip {
+    position: absolute;
+    top: -30px;
+    left: 130px;
+    background: var(--color-text);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 9px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.chart-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 10px;
 }
 
 .notif-item + .notif-item {

@@ -55,9 +55,38 @@ const getPublicProfile = async (req, res) => {
     }
 };
 
+const forgotPassword = async (req, res) => {
+    try {
+        const { identifier } = req.body;
+        if (!identifier?.trim()) {
+            return res.status(400).json({ error: "identifier is required" });
+        }
+        const result = await userService.requestPasswordReset(identifier.trim());
+        res.json({
+            message: "Reset token generated. In production this would be emailed or texted to you.",
+            reset_token: result.reset_token,
+            expires_at: result.expires_at
+        });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { token, new_password } = req.body;
+        await userService.resetPassword(token, new_password);
+        res.json({ message: "Password reset successfully" });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
 module.exports = {
     register,
     login,
     lookupUser,
-    getPublicProfile
+    getPublicProfile,
+    forgotPassword,
+    resetPassword
 };

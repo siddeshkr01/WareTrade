@@ -43,9 +43,34 @@ const findPublicProfileById = async (user_id) => {
     return rows[0];
 };
 
+const setResetToken = async (user_id, token, expires) => {
+    await db.query(
+        `UPDATE user SET reset_token = ?, reset_token_expires = ? WHERE user_id = ?`,
+        [token, expires, user_id]
+    );
+};
+
+const findByResetToken = async (token) => {
+    const [rows] = await db.query(
+        `SELECT * FROM user WHERE reset_token = ? AND deleted = FALSE`,
+        [token]
+    );
+    return rows[0];
+};
+
+const updatePasswordAndClearToken = async (user_id, hashedPassword) => {
+    await db.query(
+        `UPDATE user SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE user_id = ?`,
+        [hashedPassword, user_id]
+    );
+};
+
 module.exports = {
     createUser,
     findUserByPhoneOrUserId,
     findPublicUserByIdentifier,
-    findPublicProfileById
+    findPublicProfileById,
+    setResetToken,
+    findByResetToken,
+    updatePasswordAndClearToken
 };

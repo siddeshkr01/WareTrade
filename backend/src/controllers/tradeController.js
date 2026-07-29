@@ -77,6 +77,19 @@ const respondToTradeRequest = async (req, res) => {
     }
 };
 
+const counterTrade = async (req, res) => {
+    try {
+        const tradeId = parseInt(req.params.tradeId);
+        const userId = req.user.user_id;
+        const items = req.body.items;
+
+        const result = await tradeService.counterTrade(tradeId, userId, items);
+        res.status(201).json(result);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
 const getTradeByTradeId = async (req, res) => {
     try {
         const tradeId = parseInt(req.params.tradeId);
@@ -134,6 +147,7 @@ module.exports = {
     cancelTrade,
     sendTradeRequest,
     respondToTradeRequest,
+    counterTrade,
     getTradeByTradeId,
     getInitiatedTradesByUserId,
     getReceivedTradesByUserId,

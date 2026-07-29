@@ -296,6 +296,20 @@ const getGodownStock = async (godown_id) => {
     }));
 };
 
+const getStockHistory = async (godown_id, limit = 50) => {
+    const safeLimit = Number.isInteger(limit) ? limit : 50;
+    const [rows] = await db.query(
+        `SELECT sh.id, sh.product_id, p.product_name, sh.quantity_change, sh.action_type, sh.created_at
+         FROM store_history sh
+         JOIN products p ON sh.product_id = p.product_id
+         WHERE sh.godown_id = ?
+         ORDER BY sh.created_at DESC
+         LIMIT ${safeLimit}`,
+        [godown_id]
+    );
+    return rows;
+};
+
 const getStockAvailability = async (godown_id, product_id, conn = db) => {
     const [rows] = await conn.query(
         `SELECT
@@ -370,6 +384,7 @@ module.exports = {
     checkStoredProducts,
     getGodownDetails,
     getGodownStock,
+    getStockHistory,
     getStockAvailability,
     searchAvailableGodowns,
     updateRentalStatus,
